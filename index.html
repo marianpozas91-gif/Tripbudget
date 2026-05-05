@@ -287,8 +287,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <input type="text" id="nt-name" placeholder="ej. Japón 2025, Europa verano…"/>
     <label class="nts-label">Emoji / bandera (opcional)</label>
     <input type="text" id="nt-flag" placeholder="🇯🇵" maxlength="4" style="font-size:22px;text-align:center;width:80px;"/>
-    <label class="nts-label">Presupuesto total</label>
-    <input type="number" id="nt-budget" placeholder="500000" inputmode="numeric"/>
     <label class="nts-label">Duración (días)</label>
     <input type="number" id="nt-days" placeholder="10" min="1" inputmode="numeric"/>
     <label class="nts-label">Moneda (símbolo)</label>
@@ -325,8 +323,12 @@ function decodeState(hash) {
 }
 
 function saveToURL() {
-  const encoded = encodeState(db);
-  history.replaceState(null, '', encoded);
+  try {
+    const encoded = encodeState(db);
+    history.replaceState(null, '', encoded);
+  } catch(e) {
+    // Sandboxed environment (e.g. iframe) — silently ignore
+  }
 }
 
 function defaultDB() {
@@ -459,7 +461,6 @@ function openSheet(mode, id) {
     document.getElementById('sheet-confirm-btn').textContent = 'Guardar cambios';
     document.getElementById('nt-name').value = t.name;
     document.getElementById('nt-flag').value = t.flag||'';
-    document.getElementById('nt-budget').value = t.totalBudget;
     document.getElementById('nt-days').value = t.totalDays;
     document.getElementById('nt-currency').value = t.currency||'¥';
     currentTripId = id;
@@ -499,22 +500,24 @@ function addSheetCat() {
 
 function updateSheetHint() {
   const total = sheetTempCats.reduce((s,c) => s+c.dailyAlloc, 0);
-  const budget = parseFloat(document.getElementById('nt-budget').value)||0;
-  const days = parseInt(document.getElementById('nt-days').value)||1;
-  const perDay = budget/days;
+  const days = parseInt(document.getElementById('nt-days').value)||0;
   const cur = document.getElementById('nt-currency').value||'¥';
   const el = document.getElementById('nt-alloc-hint');
-  el.textContent = `Asignado: ${cur}${total.toLocaleString('es-MX')}/día${perDay>0?' · Presupuesto: '+cur+Math.round(perDay).toLocaleString('es-MX')+'/día':''}`;
-  el.className = 'alloc-hint'+(perDay>0&&total>perDay?' warn':'');
+  const tripTotal = total * days;
+  el.textContent = days > 0
+    ? `${cur}${total.toLocaleString('es-MX')}/día × ${days} días = Presupuesto total: ${cur}${tripTotal.toLocaleString('es-MX')}`
+    : `${cur}${total.toLocaleString('es-MX')}/día`;
+  el.className = 'alloc-hint';
 }
 
 function confirmSheet() {
   const name = document.getElementById('nt-name').value.trim();
   const flag = document.getElementById('nt-flag').value.trim();
-  const budget = parseFloat(document.getElementById('nt-budget').value);
   const days = parseInt(document.getElementById('nt-days').value);
   const currency = document.getElementById('nt-currency').value.trim()||'¥';
-  if (!name||!budget||!days) { showToast('Completa los datos del viaje'); return; }
+  const cats = sheetTempCats.filter(c=>c.name);
+  const budget = cats.reduce((s,c)=>s+c.dailyAlloc,0) * (days||0);
+  if (!name||!days||!budget) { showToast('Completa nombre, días y al menos una categoría'); return; }
 
   if (sheetMode==='create') {
     const t = {
@@ -532,8 +535,9 @@ function confirmSheet() {
   } else {
     const t = db.trips.find(tr=>tr.id===currentTripId);
     if (t) {
-      t.name=name; t.flag=flag; t.totalBudget=budget; t.totalDays=days; t.currency=currency;
-      t.categories=sheetTempCats.filter(c=>c.name);
+      t.name=name; t.flag=flag; t.totalDays=days; t.currency=currency;
+      t.categories=cats;
+      t.totalBudget = cats.reduce((s,c)=>s+c.dailyAlloc,0) * days;
       if (t.currentDay>t.totalDays) t.currentDay=t.totalDays;
     }
     save();
@@ -593,14 +597,34 @@ function renderDashboard() {
     const pctBar=avail>0?Math.min(100,Math.round((spent/avail)*100)):0;
     const leftColor=left<0?'var(--red)':left<avail*0.25?'var(--amber)':'var(--text)';
     const carryHtml=carry!==0?`<span class="cat-carry${carry<0?' neg':''}">${carry>0?'+':''}${fmt(carry)}</span>`:'';
+    // Overall bucket stats
+    const bucketTotal = cat.dailyAlloc * t.totalDays;
+    const bucketSpent = t.expenses.filter(e=>e.cat===cat.name).reduce((s,e)=>s+e.amount,0);
+    const bucketLeft = bucketTotal - bucketSpent;
+    const daysLeft = t.totalDays - d + 1;
+    const dailyAllowed = daysLeft > 0 ? Math.round(bucketLeft / daysLeft) : 0;
+    const bucketPct = Math.min(100, Math.round((bucketSpent/bucketTotal)*100));
+    const bucketColor = bucketPct>85?'#e05a4e':bucketPct>65?'#d4943a':'#5aab7e';
     return `<div class="cat-item">
       <div class="cat-item-top">
         <div class="cat-dot" style="background:${cat.color}"></div>
         <div class="cat-item-name">${cat.name}${carryHtml}</div>
-        <div class="cat-item-left" style="color:${leftColor}">${fmt(Math.max(0,left))}</div>
+        <div class="cat-item-left" style="color:${leftColor}">${fmt(Math.max(0,left))} hoy</div>
       </div>
-      <div class="cat-item-detail"><span>${fmt(spent)} gastado</span><span>${fmt(avail)} disponible</span></div>
-      <div class="bar-wrap"><div class="bar-fill" style="width:${pctBar}%;background:${barColor(pctBar)}"></div></div>
+      <div class="cat-item-detail"><span>${fmt(spent)} gastado hoy</span><span>${fmt(avail)} disponible hoy</span></div>
+      <div class="bar-wrap" style="margin-bottom:8px"><div class="bar-fill" style="width:${pctBar}%;background:${barColor(pctBar)}"></div></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:8px 10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--text3);letter-spacing:0.04em;text-transform:uppercase;">Total del viaje</span>
+          <span style="font-size:11px;color:var(--text3)">${bucketPct}% usado</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+          <span style="font-family:var(--font-display);font-size:15px;color:${bucketLeft<0?'var(--red)':bucketLeft<bucketTotal*0.15?'var(--amber)':'var(--green)'};">${fmt(Math.max(0,bucketLeft))} restantes</span>
+          <span style="font-size:11px;color:var(--text3)">de ${fmt(bucketTotal)}</span>
+        </div>
+        <div class="bar-wrap" style="margin-bottom:5px"><div class="bar-fill" style="width:${bucketPct}%;background:${bucketColor}"></div></div>
+        <div style="font-size:11px;color:var(--text3);">≈ ${fmt(Math.max(0,dailyAllowed))}/día los próximos ${daysLeft} día${daysLeft!==1?'s':''}</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -666,9 +690,9 @@ function renderSetup() {
   document.getElementById('screen-setup').innerHTML = `
     <div class="card">
       <div class="setup-section-title">Datos del viaje</div>
-      <div class="setup-row"><span class="setup-row-label">Presupuesto total</span><input type="number" id="s-total" value="${t.totalBudget}" inputmode="numeric"/></div>
       <div class="setup-row"><span class="setup-row-label">Duración (días)</span><input type="number" id="s-days" value="${t.totalDays}" min="1" inputmode="numeric"/></div>
       <div class="setup-row"><span class="setup-row-label">Moneda (símbolo)</span><input type="text" id="s-cur" value="${t.currency}" maxlength="4" style="text-align:right"/></div>
+      <div class="setup-row"><span class="setup-row-label">Presupuesto total</span><span style="font-family:var(--font-display);font-size:15px;color:var(--accent)">${t.currency}${t.totalBudget.toLocaleString('es-MX')}</span></div>
     </div>
     <div class="card">
       <div class="setup-section-title">Categorías · asignación diaria</div>
@@ -688,20 +712,22 @@ function renderSetup() {
 }
 
 function updateSetupSum() {
-  const t=trip(); const total=t.categories.reduce((s,c)=>s+c.dailyAlloc,0);
+  const t=trip();
+  const perDay=t.categories.reduce((s,c)=>s+c.dailyAlloc,0);
+  const days=parseInt(document.getElementById('s-days')?.value)||t.totalDays;
+  const total=perDay*days;
   const el=document.getElementById('setup-alloc-sum');
-  if(el) el.textContent=`Total: ${t.currency}${total.toLocaleString('es-MX')}/día`;
+  if(el) el.textContent=`${t.currency}${perDay.toLocaleString('es-MX')}/día × ${days} días = ${t.currency}${total.toLocaleString('es-MX')} total`;
 }
 
 function saveSetup() {
   const t=trip();
-  const total=parseFloat(document.getElementById('s-total').value);
   const days=parseInt(document.getElementById('s-days').value);
   const cur=document.getElementById('s-cur').value.trim();
-  if(total>0) t.totalBudget=total;
   if(days>0) t.totalDays=days;
   if(cur) t.currency=cur;
   if(t.currentDay>t.totalDays) t.currentDay=t.totalDays;
+  t.totalBudget = t.categories.reduce((s,c)=>s+c.dailyAlloc,0) * t.totalDays;
   save(); showToast('¡Guardado!');
   setTimeout(()=>showTripScreen('dashboard'),350);
 }

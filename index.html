@@ -1,1 +1,755 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Trip Budget"/>
+<title>Trip Budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --font-display: 'Shippori Mincho', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 20px;
+  --green: #5aab7e; --amber: #d4943a; --red: #e05a4e; --blue: #5a8fd4;
+}
+[data-theme="dark"] {
+  --bg:#0e0e0e; --bg2:#161616; --surface:#1a1a1a; --surface2:#242424; --surface3:#2e2e2e;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+  --text:#f0ede8; --text2:rgba(240,237,232,0.55); --text3:rgba(240,237,232,0.28);
+  --accent:#e8d5b0; --toggle-bg:#2a2a2a;
+}
+[data-theme="light"] {
+  --bg:#f5f3ef; --bg2:#eeece8; --surface:#ffffff; --surface2:#f5f3ef; --surface3:#eceae6;
+  --border:rgba(0,0,0,0.07); --border2:rgba(0,0,0,0.13);
+  --text:#1a1814; --text2:rgba(26,24,20,0.55); --text3:rgba(26,24,20,0.35);
+  --accent:#7a5c2e; --toggle-bg:#e2e0dc;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;overflow:hidden;transition:background 0.25s,color 0.25s;}
+#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top);}
 
+/* HEADER */
+#global-header{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 11px;border-bottom:0.5px solid var(--border);flex-shrink:0;}
+#gh-left{display:flex;align-items:center;gap:8px;}
+#back-btn{display:none;background:none;border:none;cursor:pointer;color:var(--text2);font-size:22px;padding:0 6px 0 0;line-height:1;}
+#gh-title{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--accent);}
+#gh-sub{font-size:11px;color:var(--text3);letter-spacing:0.05em;text-transform:uppercase;margin-top:1px;}
+#gh-right{display:flex;align-items:center;gap:8px;}
+#save-btn{background:rgba(90,171,126,0.15);border:0.5px solid rgba(90,171,126,0.35);border-radius:20px;color:var(--green);font-family:var(--font-body);font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer;display:none;}
+#theme-toggle{background:var(--toggle-bg);border:0.5px solid var(--border2);border-radius:20px;width:42px;height:24px;cursor:pointer;position:relative;flex-shrink:0;}
+#theme-toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--accent);transition:transform 0.25s;}
+[data-theme="light"] #theme-toggle::after{transform:translateX(18px);}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + var(--safe-bot));}
+#content::-webkit-scrollbar{width:0;}
+
+/* SAVE BANNER */
+#save-banner{display:none;background:rgba(90,171,126,0.12);border-bottom:0.5px solid rgba(90,171,126,0.25);padding:10px 16px;text-align:center;}
+#save-banner p{font-size:12px;color:var(--green);margin-bottom:6px;}
+#save-banner button{background:var(--green);color:#fff;border:none;border-radius:20px;font-family:var(--font-body);font-size:12px;font-weight:500;padding:6px 16px;cursor:pointer;}
+
+/* TAB BAR */
+#tab-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:0.5px solid var(--border);display:none;padding-bottom:var(--safe-bot);z-index:100;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 4px 7px;gap:3px;cursor:pointer;}
+.tab svg{width:21px;height:21px;stroke:var(--text3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke 0.2s;}
+.tab span{font-size:10px;color:var(--text3);letter-spacing:0.04em;transition:color 0.2s;}
+.tab.active svg{stroke:var(--accent);}
+.tab.active span{color:var(--accent);}
+
+/* SCREENS */
+.screen{display:none;padding:14px 14px 0;}
+.screen.active{display:block;}
+#screen-trips{display:none;padding:14px 14px 0;}
+#screen-trips.active{display:block;}
+
+/* TRIP LIST */
+.btn-new-trip{width:100%;background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-md);font-family:var(--font-body);font-size:15px;font-weight:500;padding:15px;cursor:pointer;margin-bottom:12px;transition:opacity 0.2s;}
+.btn-new-trip:active{opacity:0.82;}
+.trip-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px;cursor:pointer;transition:background 0.15s;position:relative;overflow:hidden;}
+.trip-card:active{background:var(--surface2);}
+.trip-card.is-active{border-color:var(--accent);border-width:1px;}
+.trip-card-flag{position:absolute;right:-4px;top:-8px;font-size:60px;opacity:0.1;pointer-events:none;line-height:1;}
+.trip-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:5px;}
+.trip-card-name{font-family:var(--font-display);font-size:17px;font-weight:500;}
+.trip-status{font-size:11px;padding:3px 9px;border-radius:20px;}
+.trip-status.active{background:rgba(90,171,126,0.15);color:#5aab7e;}
+.trip-status.upcoming{background:rgba(90,143,212,0.15);color:#5a8fd4;}
+.trip-status.finished{background:var(--surface3);color:var(--text3);}
+.trip-card-meta{font-size:13px;color:var(--text2);margin-bottom:9px;}
+.trip-progress-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:5px;}
+.bar-wrap{height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;}
+.empty{text-align:center;color:var(--text3);font-size:14px;padding:44px 20px;}
+
+/* SHEET */
+#sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:flex-end;}
+#sheet-overlay.open{display:flex;}
+#sheet{background:var(--surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:18px 16px calc(18px + var(--safe-bot));width:100%;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.sheet-drag{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 14px;}
+#sheet h3{font-family:var(--font-display);font-size:17px;font-weight:500;margin-bottom:14px;}
+.nts-label{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;margin-top:13px;display:block;}
+.nts-cat-row{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:0.5px solid var(--border);}
+.nts-cat-row:last-child{border-bottom:none;}
+.cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.nts-cat-row input[type=text]{flex:1;}
+.nts-cat-row input[type=number]{width:95px;flex-shrink:0;text-align:right;}
+.nts-cat-row .del-cat{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 3px;}
+.btn-add-cat{background:none;border:0.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-family:var(--font-body);font-size:13px;padding:8px 14px;cursor:pointer;margin-top:8px;width:100%;}
+.alloc-hint{font-size:12px;color:var(--text3);margin-top:7px;text-align:right;}
+.alloc-hint.warn{color:var(--amber);}
+.sheet-actions{display:flex;gap:10px;margin-top:16px;}
+.btn-cancel{flex:1;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;color:var(--text2);padding:13px;cursor:pointer;}
+.btn-create{flex:2;background:var(--accent);border:none;border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;font-weight:500;color:var(--bg);padding:13px;cursor:pointer;}
+
+/* FORMS */
+select,input[type=number],input[type=text]{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:16px;padding:12px 13px;appearance:none;-webkit-appearance:none;outline:none;transition:border-color 0.2s;}
+select:focus,input:focus{border-color:var(--accent);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;background-color:var(--surface2);padding-right:34px;}
+
+/* DASHBOARD */
+#budget-hero{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:10px;position:relative;overflow:hidden;}
+#hero-flag{position:absolute;right:-4px;top:-10px;font-size:76px;opacity:0.09;pointer-events:none;line-height:1;}
+.hero-label{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
+.hero-amount{font-family:var(--font-display);font-size:34px;font-weight:600;color:var(--accent);}
+.hero-sub{font-size:13px;color:var(--text2);margin-top:3px;}
+.hero-bar-wrap{margin-top:12px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.hero-bar{height:100%;border-radius:2px;transition:width 0.4s;}
+#day-nav{display:flex;align-items:center;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:10px;}
+#day-nav button{background:none;border:none;color:var(--text2);font-size:20px;padding:12px 16px;cursor:pointer;}
+#day-nav button:active{background:var(--surface2);}
+#day-nav-inner{flex:1;text-align:center;padding:6px 0;}
+.day-nav-label{font-family:var(--font-display);font-size:15px;color:var(--text);}
+.day-nav-sub{font-size:11px;color:var(--text3);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.stat{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:13px;}
+.stat-label{font-size:11px;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px;}
+.stat-val{font-family:var(--font-display);font-size:21px;font-weight:500;}
+.stat-val.green{color:var(--green);} .stat-val.amber{color:var(--amber);} .stat-val.red{color:var(--red);}
+.cat-list{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px;}
+.cat-list-title{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);padding:11px 15px 7px;}
+.cat-item{padding:11px 15px;border-top:0.5px solid var(--border);}
+.cat-item-top{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.cat-item-name{flex:1;font-size:14px;}
+.cat-carry{font-size:11px;color:var(--green);margin-left:3px;}
+.cat-carry.neg{color:var(--red);}
+.cat-item-left{font-family:var(--font-display);font-size:15px;}
+.cat-item-detail{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px;}
+.btn-primary{width:100%;background:var(--accent);color:var(--bg);border:none;border-radius:var(--radius-md);font-family:var(--font-body);font-size:15px;font-weight:500;padding:15px;cursor:pointer;margin-bottom:12px;transition:opacity 0.2s,transform 0.1s;}
+.btn-primary:active{opacity:0.82;transform:scale(0.98);}
+
+/* LOG */
+.form-group{margin-bottom:14px;}
+.form-label{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);margin-bottom:7px;display:block;}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:15px;margin-bottom:10px;}
+
+/* HISTORY */
+.day-block{margin-bottom:14px;}
+.day-block-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;padding:0 3px;}
+.day-block-title{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);}
+.day-block-total{font-family:var(--font-display);font-size:14px;color:var(--text2);}
+.expense-row{display:flex;align-items:center;gap:9px;padding:10px 14px;border-top:0.5px solid var(--border);}
+.expense-row:first-child{border-top:none;}
+.exp-info{flex:1;}
+.exp-cat{font-size:13px;}
+.exp-note{font-size:11px;color:var(--text3);margin-top:1px;}
+.exp-amount{font-family:var(--font-display);font-size:15px;}
+.exp-del{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 6px;border-radius:8px;}
+.exp-del:active{color:var(--red);}
+
+/* SETUP */
+.setup-section-title{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 8px;}
+.setup-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);}
+.setup-row:last-child{border-bottom:none;}
+.setup-row-label{flex:1;font-size:14px;color:var(--text2);}
+.setup-row input{width:130px;flex-shrink:0;text-align:right;}
+.setup-cat-row{display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:0.5px solid var(--border);}
+.setup-cat-row:last-child{border-bottom:none;}
+.setup-cat-row input[type=text]{flex:1;}
+.setup-cat-row input[type=number]{width:100px;flex-shrink:0;text-align:right;}
+.alloc-sum{font-size:12px;color:var(--text3);margin-top:8px;text-align:right;}
+.alloc-sum.warn{color:var(--amber);}
+.btn-save{width:100%;background:var(--surface2);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius-md);font-family:var(--font-body);font-size:15px;padding:14px;cursor:pointer;margin-top:12px;}
+.btn-save:active{background:var(--surface3);}
+.btn-set-active{width:100%;background:rgba(90,171,126,0.12);color:var(--green);border:0.5px solid rgba(90,171,126,0.3);border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;padding:13px;cursor:pointer;margin-top:8px;}
+.btn-danger{width:100%;background:none;border:none;color:var(--red);font-family:var(--font-body);font-size:13px;padding:13px;cursor:pointer;opacity:0.75;margin-top:2px;}
+
+/* TOAST */
+.toast{position:fixed;top:calc(var(--safe-top) + 58px);left:50%;transform:translateX(-50%) translateY(-12px);background:var(--green);color:#fff;font-size:13px;font-weight:500;padding:9px 20px;border-radius:20px;opacity:0;transition:opacity 0.3s,transform 0.3s;pointer-events:none;z-index:300;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* SAVE INSTRUCTIONS */
+#save-banner{display:none;background:rgba(90,171,126,0.1);border-bottom:0.5px solid rgba(90,171,126,0.2);padding:9px 16px;flex-shrink:0;}
+#save-banner.visible{display:block;}
+#save-banner p{font-size:12px;color:var(--green);line-height:1.5;}
+</style>
+</head>
+<body data-theme="dark">
+<div id="app">
+  <div id="global-header">
+    <div id="gh-left">
+      <button id="back-btn" onclick="goHome()">&#8592;</button>
+      <div>
+        <div id="gh-title">Trip Budget</div>
+        <div id="gh-sub">travel tracker</div>
+      </div>
+    </div>
+    <div id="gh-right">
+      <button id="save-btn" onclick="showSaveInstructions()">Guardar</button>
+      <button id="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar tema"></button>
+    </div>
+  </div>
+
+  <div id="save-banner">
+    <p id="save-banner-text"></p>
+  </div>
+
+  <div id="content">
+    <div id="screen-trips" class="active">
+      <button class="btn-new-trip" onclick="openSheet('create')">+ Nuevo viaje</button>
+      <div id="trips-list"></div>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+      <div id="budget-hero">
+        <div id="hero-flag"></div>
+        <div class="hero-label">Presupuesto restante</div>
+        <div class="hero-amount" id="hero-remaining"></div>
+        <div class="hero-sub" id="hero-sub"></div>
+        <div class="hero-bar-wrap"><div class="hero-bar" id="hero-bar"></div></div>
+      </div>
+      <div id="day-nav">
+        <button onclick="changeDay(-1)">&#8592;</button>
+        <div id="day-nav-inner">
+          <div class="day-nav-label" id="day-nav-label"></div>
+          <div class="day-nav-sub" id="day-nav-sub"></div>
+        </div>
+        <button onclick="changeDay(1)">&#8594;</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Disponible hoy</div><div class="stat-val" id="stat-avail"></div></div>
+        <div class="stat"><div class="stat-label">Gastado hoy</div><div class="stat-val" id="stat-spent"></div></div>
+      </div>
+      <div class="cat-list">
+        <div class="cat-list-title">Por categoría · Día <span id="cat-day-num"></span></div>
+        <div id="cat-rows"></div>
+      </div>
+      <button class="btn-primary" onclick="showTripScreen('log')">+ Registrar gasto</button>
+    </div>
+
+    <div id="screen-log" class="screen">
+      <div class="card">
+        <div class="form-group"><label class="form-label">Día</label><select id="log-day"></select></div>
+        <div class="form-group"><label class="form-label">Categoría</label><select id="log-cat"></select></div>
+        <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="log-amount" placeholder="ej. 1500" min="1" inputmode="numeric"/></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Nota (opcional)</label><input type="text" id="log-note" placeholder="ej. Ramen en Ichiran"/></div>
+      </div>
+      <button class="btn-primary" onclick="logExpense()">Guardar gasto</button>
+    </div>
+
+    <div id="screen-history" class="screen"></div>
+    <div id="screen-setup" class="screen"></div>
+  </div>
+
+  <div id="tab-bar">
+    <div class="tab active" onclick="showTripScreen('dashboard')" id="tab-dashboard">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Inicio</span>
+    </div>
+    <div class="tab" onclick="showTripScreen('log')" id="tab-log">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Gasto</span>
+    </div>
+    <div class="tab" onclick="showTripScreen('history')" id="tab-history">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 3 3 21 3 21 6"/><rect x="3" y="6" width="18" height="15" rx="1"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg>
+      <span>Historial</span>
+    </div>
+    <div class="tab" onclick="showTripScreen('setup')" id="tab-setup">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Config</span>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET -->
+<div id="sheet-overlay" onclick="overlayClick(event)">
+  <div id="sheet">
+    <div class="sheet-drag"></div>
+    <h3 id="sheet-title">Nuevo viaje</h3>
+    <label class="nts-label">Nombre del viaje</label>
+    <input type="text" id="nt-name" placeholder="ej. Japón 2025, Europa verano…"/>
+    <label class="nts-label">Emoji / bandera (opcional)</label>
+    <input type="text" id="nt-flag" placeholder="🇯🇵" maxlength="4" style="font-size:22px;text-align:center;width:80px;"/>
+    <label class="nts-label">Duración (días)</label>
+    <input type="number" id="nt-days" placeholder="10" min="1" inputmode="numeric"/>
+    <label class="nts-label">Moneda (símbolo)</label>
+    <input type="text" id="nt-currency" placeholder="¥" maxlength="4" style="text-align:center;font-size:18px;width:80px;"/>
+    <label class="nts-label">Categorías y asignación diaria</label>
+    <div id="nt-cats"></div>
+    <button class="btn-add-cat" onclick="addSheetCat()">+ Agregar categoría</button>
+    <div class="alloc-hint" id="nt-alloc-hint"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Cancelar</button>
+      <button class="btn-create" id="sheet-confirm-btn" onclick="confirmSheet()">Crear viaje</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   STORAGE: URL hash — works from any file://
+   ══════════════════════════════════════════ */
+const CAT_COLORS = ['#5aab7e','#5a8fd4','#d46a5a','#d4943a','#b57ed4','#d4b85a','#5abcd4','#d45a8f'];
+
+function encodeState(db) {
+  try { return '#' + btoa(unescape(encodeURIComponent(JSON.stringify(db)))); }
+  catch(e) { return '#'; }
+}
+
+function decodeState(hash) {
+  try {
+    if (!hash || hash === '#') return null;
+    return JSON.parse(decodeURIComponent(escape(atob(hash.slice(1)))));
+  } catch(e) { return null; }
+}
+
+function saveToURL() {
+  try {
+    const encoded = encodeState(db);
+    history.replaceState(null, '', encoded);
+  } catch(e) {
+    // Sandboxed environment (e.g. iframe) — silently ignore
+  }
+}
+
+function defaultDB() {
+  return { trips: [], activeId: null, theme: 'dark' };
+}
+
+let db = decodeState(location.hash) || defaultDB();
+if (!db.theme) db.theme = 'dark';
+document.body.setAttribute('data-theme', db.theme);
+
+function save() {
+  saveToURL();
+}
+
+/* ══ STATE ══ */
+let currentTripId = null;
+let sheetMode = 'create';
+let sheetTempCats = [];
+
+function trip() { return db.trips.find(t => t.id === currentTripId); }
+
+/* ══ THEME ══ */
+function toggleTheme() {
+  db.theme = db.theme === 'dark' ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', db.theme);
+  save();
+}
+
+/* ══ SAVE INSTRUCTIONS ══ */
+function showSaveInstructions() {
+  const banner = document.getElementById('save-banner');
+  const text = document.getElementById('save-banner-text');
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    text.innerHTML = '📌 Para guardar: toca el botón Compartir en Safari → "Añadir a marcadores" o "Añadir a pantalla de inicio". La URL ya contiene todos tus datos.';
+  } else {
+    text.innerHTML = '📌 Para guardar: agrega esta página a tus favoritos (Ctrl+D). La URL contiene todos tus datos actuales.';
+  }
+  banner.classList.toggle('visible');
+}
+
+/* ══ NAVIGATION ══ */
+function goHome() {
+  currentTripId = null;
+  document.getElementById('back-btn').style.display = 'none';
+  document.getElementById('save-btn').style.display = 'none';
+  document.getElementById('gh-title').textContent = 'Trip Budget';
+  document.getElementById('gh-sub').textContent = 'travel tracker';
+  document.getElementById('tab-bar').style.display = 'none';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-trips').classList.add('active');
+  document.getElementById('save-banner').classList.remove('visible');
+  renderTrips();
+}
+
+function openTrip(id) {
+  currentTripId = id;
+  const t = trip();
+  document.getElementById('back-btn').style.display = 'block';
+  document.getElementById('save-btn').style.display = 'block';
+  document.getElementById('gh-title').textContent = (t.flag ? t.flag + ' ' : '') + t.name;
+  document.getElementById('gh-sub').textContent = t.currency + ' · ' + t.totalDays + ' días';
+  document.getElementById('screen-trips').classList.remove('active');
+  document.getElementById('tab-bar').style.display = 'flex';
+  document.getElementById('save-banner').classList.remove('visible');
+  showTripScreen('dashboard');
+}
+
+function showTripScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'log') renderLogForm();
+  if (name === 'history') renderHistory();
+  if (name === 'setup') renderSetup();
+}
+
+/* ══ TRIP LIST ══ */
+function tripStatus(t) {
+  const pct = t.expenses.reduce((s,e) => s+e.amount, 0) / t.totalBudget;
+  if (t.id === db.activeId) return 'active';
+  if (pct >= 1) return 'finished';
+  return 'upcoming';
+}
+
+function statusLabel(s) { return s==='active'?'Activo':s==='upcoming'?'Próximo':'Finalizado'; }
+
+function renderTrips() {
+  const list = document.getElementById('trips-list');
+  if (!db.trips.length) {
+    list.innerHTML = '<div class="empty">Sin viajes aún.<br>Crea tu primer viaje arriba.</div>';
+    return;
+  }
+  const sorted = [...db.trips].sort((a,b) => {
+    const o = {active:0,upcoming:1,finished:2};
+    return o[tripStatus(a)] - o[tripStatus(b)];
+  });
+  list.innerHTML = sorted.map(t => {
+    const spent = t.expenses.reduce((s,e) => s+e.amount, 0);
+    const pct = Math.min(100, Math.round((spent/t.totalBudget)*100));
+    const status = tripStatus(t);
+    const bc = pct>85?'#e05a4e':pct>65?'#d4943a':'#5aab7e';
+    return `<div class="trip-card${status==='active'?' is-active':''}" onclick="openTrip('${t.id}')">
+      <div class="trip-card-flag">${t.flag||''}</div>
+      <div class="trip-card-top">
+        <div class="trip-card-name">${t.name}</div>
+        <span class="trip-status ${status}">${statusLabel(status)}</span>
+      </div>
+      <div class="trip-card-meta">${t.totalDays} días · ${t.currency}${Math.round(t.totalBudget).toLocaleString('es-MX')} total</div>
+      <div class="trip-progress-row"><span>${t.currency}${Math.round(spent).toLocaleString('es-MX')} gastado</span><span>${pct}%</span></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${bc}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ SHEET ══ */
+const DEFAULT_CATS = [
+  {name:'Comidas',dailyAlloc:20000},{name:'Souvenirs',dailyAlloc:15000},
+  {name:'Transporte',dailyAlloc:5000},{name:'Otros',dailyAlloc:5000}
+];
+
+function openSheet(mode, id) {
+  sheetMode = mode;
+  if (mode === 'edit') {
+    const t = db.trips.find(tr => tr.id === id);
+    sheetTempCats = t.categories.map(c => ({...c}));
+    document.getElementById('sheet-title').textContent = 'Editar viaje';
+    document.getElementById('sheet-confirm-btn').textContent = 'Guardar cambios';
+    document.getElementById('nt-name').value = t.name;
+    document.getElementById('nt-flag').value = t.flag||'';
+    document.getElementById('nt-days').value = t.totalDays;
+    document.getElementById('nt-currency').value = t.currency||'¥';
+    currentTripId = id;
+  } else {
+    sheetTempCats = DEFAULT_CATS.map((c,i) => ({name:c.name,dailyAlloc:c.dailyAlloc,color:CAT_COLORS[i]}));
+    document.getElementById('sheet-title').textContent = 'Nuevo viaje';
+    document.getElementById('sheet-confirm-btn').textContent = 'Crear viaje';
+    document.getElementById('nt-name').value = '';
+    document.getElementById('nt-flag').value = '';
+    document.getElementById('nt-days').value = '';
+    document.getElementById('nt-currency').value = '¥';
+  }
+  renderSheetCats();
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function closeSheet() { document.getElementById('sheet-overlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target===document.getElementById('sheet-overlay')) closeSheet(); }
+
+function renderSheetCats() {
+  document.getElementById('nt-cats').innerHTML = sheetTempCats.map((cat,i) =>
+    `<div class="nts-cat-row">
+      <div class="cat-dot" style="background:${cat.color}"></div>
+      <input type="text" value="${cat.name}" onchange="sheetTempCats[${i}].name=this.value" placeholder="Categoría"/>
+      <input type="number" value="${cat.dailyAlloc}" inputmode="numeric" onchange="sheetTempCats[${i}].dailyAlloc=parseInt(this.value)||0;updateSheetHint()" placeholder="0"/>
+      <button class="del-cat" onclick="sheetTempCats.splice(${i},1);renderSheetCats()">×</button>
+    </div>`
+  ).join('');
+  updateSheetHint();
+}
+
+function addSheetCat() {
+  sheetTempCats.push({name:'',dailyAlloc:0,color:CAT_COLORS[sheetTempCats.length%CAT_COLORS.length]});
+  renderSheetCats();
+}
+
+function updateSheetHint() {
+  const total = sheetTempCats.reduce((s,c) => s+c.dailyAlloc, 0);
+  const days = parseInt(document.getElementById('nt-days').value)||0;
+  const cur = document.getElementById('nt-currency').value||'¥';
+  const el = document.getElementById('nt-alloc-hint');
+  const tripTotal = total * days;
+  el.textContent = days > 0
+    ? `${cur}${total.toLocaleString('es-MX')}/día × ${days} días = Presupuesto total: ${cur}${tripTotal.toLocaleString('es-MX')}`
+    : `${cur}${total.toLocaleString('es-MX')}/día`;
+  el.className = 'alloc-hint';
+}
+
+function confirmSheet() {
+  const name = document.getElementById('nt-name').value.trim();
+  const flag = document.getElementById('nt-flag').value.trim();
+  const days = parseInt(document.getElementById('nt-days').value);
+  const currency = document.getElementById('nt-currency').value.trim()||'¥';
+  const cats = sheetTempCats.filter(c=>c.name);
+  const budget = cats.reduce((s,c)=>s+c.dailyAlloc,0) * (days||0);
+  if (!name||!days||!budget) { showToast('Completa nombre, días y al menos una categoría'); return; }
+
+  if (sheetMode==='create') {
+    const t = {
+      id:'t'+Date.now(), name, flag, totalBudget:budget, totalDays:days,
+      currency, currentDay:1,
+      categories:sheetTempCats.filter(c=>c.name),
+      expenses:[]
+    };
+    db.trips.push(t);
+    if (!db.activeId) db.activeId = t.id;
+    save();
+    closeSheet();
+    showToast('¡Viaje creado!');
+    setTimeout(() => renderTrips(), 300);
+  } else {
+    const t = db.trips.find(tr=>tr.id===currentTripId);
+    if (t) {
+      t.name=name; t.flag=flag; t.totalDays=days; t.currency=currency;
+      t.categories=cats;
+      t.totalBudget = cats.reduce((s,c)=>s+c.dailyAlloc,0) * days;
+      if (t.currentDay>t.totalDays) t.currentDay=t.totalDays;
+    }
+    save();
+    closeSheet();
+    showToast('¡Guardado!');
+    setTimeout(() => openTrip(currentTripId), 300);
+  }
+}
+
+/* ══ BUDGET LOGIC ══ */
+function fmt(n) { const c = trip()?trip().currency:''; return c+Math.round(n).toLocaleString('es-MX'); }
+
+function getSpent(day, catName) {
+  return trip().expenses.filter(e=>e.day===day&&e.cat===catName).reduce((s,e)=>s+e.amount,0);
+}
+
+function catDayBudget(catName, day) {
+  const t = trip();
+  const cat = t.categories.find(c=>c.name===catName);
+  if (!cat) return 0;
+  const spentBefore = t.expenses.filter(e=>e.day<day&&e.cat===catName).reduce((s,e)=>s+e.amount,0);
+  const remaining = t.totalDays-(day-1);
+  if (remaining<=0) return 0;
+  return Math.round((cat.dailyAlloc*t.totalDays-spentBefore)/remaining);
+}
+
+function barColor(pct) { return pct>85?'#e05a4e':pct>65?'#d4943a':'#5aab7e'; }
+
+/* ══ DASHBOARD ══ */
+function renderDashboard() {
+  const t = trip(); const d = t.currentDay;
+  const ts = t.expenses.reduce((s,e)=>s+e.amount,0);
+  const remaining = t.totalBudget-ts;
+  const pct = Math.min(100,Math.round((ts/t.totalBudget)*100));
+
+  document.getElementById('hero-flag').textContent = t.flag||'';
+  document.getElementById('hero-remaining').textContent = fmt(remaining);
+  document.getElementById('hero-sub').textContent = fmt(ts)+' gastado de '+fmt(t.totalBudget);
+  const bar = document.getElementById('hero-bar');
+  bar.style.width = pct+'%'; bar.style.background = barColor(pct);
+  document.getElementById('day-nav-label').textContent = 'Día '+d+' de '+t.totalDays;
+  document.getElementById('day-nav-sub').textContent = (t.totalDays-d+1)+' días restantes';
+  document.getElementById('cat-day-num').textContent = d;
+  document.getElementById('gh-sub').textContent = t.currency+' · Día '+d+'/'+t.totalDays;
+
+  let todayAvail=0, todaySpent=0;
+  t.categories.forEach(cat => { todayAvail+=catDayBudget(cat.name,d); todaySpent+=getSpent(d,cat.name); });
+  const todayLeft = todayAvail-todaySpent;
+  const sa = document.getElementById('stat-avail');
+  sa.textContent = fmt(Math.max(0,todayLeft));
+  sa.className = 'stat-val '+(todayLeft<0?'red':todayLeft<todayAvail*0.25?'amber':'green');
+  document.getElementById('stat-spent').textContent = fmt(todaySpent);
+
+  document.getElementById('cat-rows').innerHTML = t.categories.map(cat => {
+    const avail=catDayBudget(cat.name,d), spent=getSpent(d,cat.name), left=avail-spent;
+    const carry=avail-cat.dailyAlloc;
+    const pctBar=avail>0?Math.min(100,Math.round((spent/avail)*100)):0;
+    const leftColor=left<0?'var(--red)':left<avail*0.25?'var(--amber)':'var(--text)';
+    const carryHtml=carry!==0?`<span class="cat-carry${carry<0?' neg':''}">${carry>0?'+':''}${fmt(carry)}</span>`:'';
+    // Overall bucket stats
+    const bucketTotal = cat.dailyAlloc * t.totalDays;
+    const bucketSpent = t.expenses.filter(e=>e.cat===cat.name).reduce((s,e)=>s+e.amount,0);
+    const bucketLeft = bucketTotal - bucketSpent;
+    const daysLeft = t.totalDays - d + 1;
+    const dailyAllowed = daysLeft > 0 ? Math.round(bucketLeft / daysLeft) : 0;
+    const bucketPct = Math.min(100, Math.round((bucketSpent/bucketTotal)*100));
+    const bucketColor = bucketPct>85?'#e05a4e':bucketPct>65?'#d4943a':'#5aab7e';
+    return `<div class="cat-item">
+      <div class="cat-item-top">
+        <div class="cat-dot" style="background:${cat.color}"></div>
+        <div class="cat-item-name">${cat.name}${carryHtml}</div>
+        <div class="cat-item-left" style="color:${leftColor}">${fmt(Math.max(0,left))} hoy</div>
+      </div>
+      <div class="cat-item-detail"><span>${fmt(spent)} gastado hoy</span><span>${fmt(avail)} disponible hoy</span></div>
+      <div class="bar-wrap" style="margin-bottom:8px"><div class="bar-fill" style="width:${pctBar}%;background:${barColor(pctBar)}"></div></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:8px 10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--text3);letter-spacing:0.04em;text-transform:uppercase;">Total del viaje</span>
+          <span style="font-size:11px;color:var(--text3)">${bucketPct}% usado</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+          <span style="font-family:var(--font-display);font-size:15px;color:${bucketLeft<0?'var(--red)':bucketLeft<bucketTotal*0.15?'var(--amber)':'var(--green)'};">${fmt(Math.max(0,bucketLeft))} restantes</span>
+          <span style="font-size:11px;color:var(--text3)">de ${fmt(bucketTotal)}</span>
+        </div>
+        <div class="bar-wrap" style="margin-bottom:5px"><div class="bar-fill" style="width:${bucketPct}%;background:${bucketColor}"></div></div>
+        <div style="font-size:11px;color:var(--text3);">≈ ${fmt(Math.max(0,dailyAllowed))}/día los próximos ${daysLeft} día${daysLeft!==1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function changeDay(delta) {
+  const t = trip(); const n = t.currentDay+delta;
+  if (n<1||n>t.totalDays) return;
+  t.currentDay=n; save(); renderDashboard();
+}
+
+/* ══ LOG ══ */
+function renderLogForm() {
+  const t = trip();
+  const ds = document.getElementById('log-day');
+  ds.innerHTML = Array.from({length:t.totalDays},(_,i)=>`<option value="${i+1}"${i+1===t.currentDay?' selected':''}>Día ${i+1}</option>`).join('');
+  document.getElementById('log-cat').innerHTML = t.categories.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  document.getElementById('log-amount').value = '';
+  document.getElementById('log-note').value = '';
+}
+
+function logExpense() {
+  const t = trip();
+  const day = parseInt(document.getElementById('log-day').value);
+  const cat = document.getElementById('log-cat').value;
+  const amount = parseFloat(document.getElementById('log-amount').value);
+  const note = document.getElementById('log-note').value.trim();
+  if (!amount||amount<=0) { document.getElementById('log-amount').focus(); return; }
+  t.expenses.push({id:Date.now(),day,cat,amount:Math.round(amount),note});
+  save();
+  showToast('¡Gasto guardado!');
+  setTimeout(()=>showTripScreen('dashboard'),380);
+}
+
+/* ══ HISTORY ══ */
+function renderHistory() {
+  const t = trip();
+  const byDay = {};
+  t.expenses.forEach(e=>{ if(!byDay[e.day]) byDay[e.day]=[]; byDay[e.day].push(e); });
+  const days = Object.keys(byDay).map(Number).sort((a,b)=>a-b);
+  if (!days.length) { document.getElementById('screen-history').innerHTML='<div class="empty">Sin gastos aún.</div>'; return; }
+  document.getElementById('screen-history').innerHTML = days.map(day => {
+    const dt = byDay[day].reduce((s,e)=>s+e.amount,0);
+    return `<div class="day-block"><div class="day-block-header"><span class="day-block-title">Día ${day}</span><span class="day-block-total">${t.currency}${Math.round(dt).toLocaleString('es-MX')}</span></div>
+    <div class="card" style="padding:0">${byDay[day].map(e=>{
+      const cat=t.categories.find(c=>c.name===e.cat);
+      return `<div class="expense-row">
+        <div class="cat-dot" style="background:${cat?cat.color:'#888'}"></div>
+        <div class="exp-info"><div class="exp-cat">${e.cat}</div>${e.note?`<div class="exp-note">${e.note}</div>`:''}</div>
+        <div class="exp-amount">${t.currency}${Math.round(e.amount).toLocaleString('es-MX')}</div>
+        <button class="exp-del" onclick="deleteExp(${e.id})">×</button>
+      </div>`;
+    }).join('')}</div></div>`;
+  }).join('');
+}
+
+function deleteExp(id) { const t=trip(); t.expenses=t.expenses.filter(e=>e.id!==id); save(); renderHistory(); }
+
+/* ══ SETUP ══ */
+function renderSetup() {
+  const t = trip();
+  const isActive = db.activeId===t.id;
+  const allocTotal = t.categories.reduce((s,c)=>s+c.dailyAlloc,0);
+  document.getElementById('screen-setup').innerHTML = `
+    <div class="card">
+      <div class="setup-section-title">Datos del viaje</div>
+      <div class="setup-row"><span class="setup-row-label">Duración (días)</span><input type="number" id="s-days" value="${t.totalDays}" min="1" inputmode="numeric"/></div>
+      <div class="setup-row"><span class="setup-row-label">Moneda (símbolo)</span><input type="text" id="s-cur" value="${t.currency}" maxlength="4" style="text-align:right"/></div>
+      <div class="setup-row"><span class="setup-row-label">Presupuesto total</span><span style="font-family:var(--font-display);font-size:15px;color:var(--accent)">${t.currency}${t.totalBudget.toLocaleString('es-MX')}</span></div>
+    </div>
+    <div class="card">
+      <div class="setup-section-title">Categorías · asignación diaria</div>
+      <div id="setup-cats">${t.categories.map((cat,i)=>`
+        <div class="setup-cat-row">
+          <div class="cat-dot" style="background:${cat.color}"></div>
+          <input type="text" value="${cat.name}" onchange="trip().categories[${i}].name=this.value"/>
+          <input type="number" value="${cat.dailyAlloc}" inputmode="numeric" onchange="trip().categories[${i}].dailyAlloc=parseInt(this.value)||0;updateSetupSum()"/>
+          <span style="font-size:11px;color:var(--text3);white-space:nowrap">${t.currency}/día</span>
+        </div>`).join('')}
+      </div>
+      <div class="alloc-sum" id="setup-alloc-sum">Total: ${t.currency}${allocTotal.toLocaleString('es-MX')}/día</div>
+    </div>
+    ${!isActive?`<button class="btn-set-active" onclick="setActiveTrip('${t.id}')">Marcar como viaje activo</button>`:''}
+    <button class="btn-save" onclick="saveSetup()">Guardar cambios</button>
+    <button class="btn-danger" onclick="deleteTrip('${t.id}')">Eliminar este viaje</button>`;
+}
+
+function updateSetupSum() {
+  const t=trip();
+  const perDay=t.categories.reduce((s,c)=>s+c.dailyAlloc,0);
+  const days=parseInt(document.getElementById('s-days')?.value)||t.totalDays;
+  const total=perDay*days;
+  const el=document.getElementById('setup-alloc-sum');
+  if(el) el.textContent=`${t.currency}${perDay.toLocaleString('es-MX')}/día × ${days} días = ${t.currency}${total.toLocaleString('es-MX')} total`;
+}
+
+function saveSetup() {
+  const t=trip();
+  const days=parseInt(document.getElementById('s-days').value);
+  const cur=document.getElementById('s-cur').value.trim();
+  if(days>0) t.totalDays=days;
+  if(cur) t.currency=cur;
+  if(t.currentDay>t.totalDays) t.currentDay=t.totalDays;
+  t.totalBudget = t.categories.reduce((s,c)=>s+c.dailyAlloc,0) * t.totalDays;
+  save(); showToast('¡Guardado!');
+  setTimeout(()=>showTripScreen('dashboard'),350);
+}
+
+function setActiveTrip(id) { db.activeId=id; save(); showToast('¡Viaje activo actualizado!'); renderSetup(); }
+
+function deleteTrip(id) {
+  if(!confirm('¿Eliminar este viaje y todos sus datos?')) return;
+  db.trips=db.trips.filter(t=>t.id!==id);
+  if(db.activeId===id) db.activeId=db.trips.length?db.trips[0].id:null;
+  save(); goHome();
+}
+
+/* ══ TOAST ══ */
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ══ INIT ══ */
+renderTrips();
+if (db.activeId && db.trips.find(t=>t.id===db.activeId)) openTrip(db.activeId);
+</script>
+</body>
+</html>
